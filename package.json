@@ -1,0 +1,13 @@
+{
+  "name": "document-approval-qa-lab",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A local QA portfolio lab for a fictional document approval workflow",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node app/server.js"
+  }
+}
