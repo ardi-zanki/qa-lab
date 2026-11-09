@@ -1,0 +1,534 @@
+{
+  "info": {
+    "name": "Document Approval QA Lab",
+    "description": "Run from top to bottom against the local demo. Each scenario creates its own synthetic record. In legacy mode the final approval and readback intentionally fail.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:4173",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Create standard request",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/requests",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "requests"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Sample purchase request\",\n  \"fixture\": \"standard\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "",
+              "pm.test(\"Request was created\", function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Request starts pending with no approval timestamp\", function () {",
+              "  pm.expect(body).to.include({ fixture: 'standard', status: 'pending', approvedAt: null });",
+              "  pm.expect(body.id).to.be.a('number');",
+              "  pm.collectionVariables.set('standardId', body.id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject incorrect code",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/requests/{{standardId}}/approve",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "requests",
+            "{{standardId}}",
+            "approve"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"999999\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "",
+              "pm.test(\"Returns HTTP 422\", function () {",
+              "  pm.response.to.have.status(422);",
+              "});",
+              "",
+              "pm.test(\"Returns INCORRECT_CODE\", function () {",
+              "  pm.expect(body.error.code).to.equal('INCORRECT_CODE');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Check state after rejection",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/requests/{{standardId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "requests",
+            "{{standardId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "",
+              "pm.test(\"Request can be retrieved\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Rejected approval leaves the request pending\", function () {",
+              "  pm.expect(body).to.include({ status: 'pending', approvedAt: null });",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Approve with the correct standard code",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/requests/{{standardId}}/approve",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "requests",
+            "{{standardId}}",
+            "approve"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"123456\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "",
+              "pm.test(\"Returns HTTP 200\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Approval sets status and timestamp\", function () {",
+              "  pm.expect(body.status).to.equal('approved');",
+              "  pm.expect(body.approvedAt).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/);",
+              "  pm.collectionVariables.set('standardIdApprovedAt', body.approvedAt);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject duplicate approval",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/requests/{{standardId}}/approve",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "requests",
+            "{{standardId}}",
+            "approve"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"123456\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "",
+              "pm.test(\"Returns HTTP 409\", function () {",
+              "  pm.response.to.have.status(409);",
+              "});",
+              "",
+              "pm.test(\"Returns ALREADY_APPROVED\", function () {",
+              "  pm.expect(body.error.code).to.equal('ALREADY_APPROVED');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Check the original approval after replay",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/requests/{{standardId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "requests",
+            "{{standardId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "",
+              "pm.test(\"Request can be retrieved\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Saved approval timestamp is unchanged\", function () {",
+              "  pm.expect(body.status).to.equal('approved');",
+              "  pm.expect(body.approvedAt).to.equal(pm.collectionVariables.get('standardIdApprovedAt'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Create leading-zero request",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/requests",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "requests"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Sample purchase request\",\n  \"fixture\": \"leading-zero\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "",
+              "pm.test(\"Request was created\", function () {",
+              "  pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"Request starts pending with no approval timestamp\", function () {",
+              "  pm.expect(body).to.include({ fixture: 'leading-zero', status: 'pending', approvedAt: null });",
+              "  pm.expect(body.id).to.be.a('number');",
+              "  pm.collectionVariables.set('edgeId', body.id);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject a numeric code",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/requests/{{edgeId}}/approve",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "requests",
+            "{{edgeId}}",
+            "approve"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": 42731\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "",
+              "pm.test(\"Returns HTTP 400\", function () {",
+              "  pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test(\"Returns INVALID_CODE_FORMAT\", function () {",
+              "  pm.expect(body.error.code).to.equal('INVALID_CODE_FORMAT');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Check state after invalid format",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/requests/{{edgeId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "requests",
+            "{{edgeId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "",
+              "pm.test(\"Request can be retrieved\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Rejected approval leaves the request pending\", function () {",
+              "  pm.expect(body).to.include({ status: 'pending', approvedAt: null });",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Accept a valid code with a leading zero",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/requests/{{edgeId}}/approve",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "requests",
+            "{{edgeId}}",
+            "approve"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"042731\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "",
+              "pm.test(\"Returns HTTP 200\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Approval sets status and timestamp\", function () {",
+              "  pm.expect(body.status).to.equal('approved');",
+              "  pm.expect(body.approvedAt).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$/);",
+              "  pm.collectionVariables.set('edgeIdApprovedAt', body.approvedAt);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Check the saved leading-zero approval",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/requests/{{edgeId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "requests",
+            "{{edgeId}}"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "",
+              "pm.test(\"Request can be retrieved\", function () {",
+              "  pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Saved approval timestamp is unchanged\", function () {",
+              "  pm.expect(body.status).to.equal('approved');",
+              "  pm.expect(body.approvedAt).to.equal(pm.collectionVariables.get('edgeIdApprovedAt'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
