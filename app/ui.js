@@ -7,6 +7,19 @@ const demoCodes = { standard: '123456', 'leading-zero': '042731' };
 const submitButtons = document.querySelectorAll('form button');
 let currentRequestId;
 
+function formatApprovalTime(timestamp) {
+  const formatted = new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Jakarta',
+  }).format(new Date(timestamp));
+
+  return `${formatted} WIB`;
+}
+
 async function callApi(path, data) {
   const options = data === undefined ? {} : {
     method: 'POST',
@@ -29,7 +42,9 @@ function renderRequest(record) {
   const approved = record.status === 'approved';
   document.querySelector('#request-heading').textContent = record.title;
   document.querySelector('#status').textContent = approved ? 'Status: Approved' : 'Status: Pending';
-  document.querySelector('#approved-at').textContent = approved ? `Approved at: ${record.approvedAt}` : '';
+  document.querySelector('#approved-at').textContent = approved
+    ? `Approved at: ${formatApprovalTime(record.approvedAt)}`
+    : '';
   document.querySelector('#code-hint').textContent = `Demo code: ${demoCodes[record.fixture]}`;
   approveForm.reset();
   approveForm.hidden = approved;

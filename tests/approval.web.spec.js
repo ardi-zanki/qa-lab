@@ -91,7 +91,15 @@ test('refreshes a stale approval in a second tab without changing the timestamp'
   expect(duplicate.status()).toBe(409);
   expect(await duplicate.json()).toMatchObject({ error: { code: 'ALREADY_APPROVED' } });
   await expect(secondTab.getByRole('status')).toHaveText('Status: Approved');
-  await expect(secondTab.getByText(`Approved at: ${approvedAt}`, { exact: true })).toBeVisible();
+  const formattedApprovalTime = new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Jakarta',
+  }).format(new Date(approvedAt));
+  await expect(secondTab.getByText(`Approved at: ${formattedApprovalTime} WIB`, { exact: true })).toBeVisible();
   await expect(secondTab.getByRole('button', { name: 'Approve document' })).toBeHidden();
 });
 
