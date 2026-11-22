@@ -17,6 +17,33 @@ async function submitCode(page, code) {
   return approvalResponse;
 }
 
+test('blocks an empty title in the form', async ({ page }) => {
+  await page.goto('/');
+  const titleInput = page.getByLabel('Document title');
+  let createRequests = 0;
+  page.on('request', request => {
+    if (request.method() === 'POST' && request.url().endsWith('/api/requests')) {
+      createRequests += 1;
+    }
+  });
+
+  await page.getByRole('button', { name: 'Create request' }).click();
+
+  await expect(titleInput).toBeFocused();
+  expect(await titleInput.evaluate(input => input.validity.valueMissing)).toBe(true);
+  expect(createRequests).toBe(0);
+  await expect(page.locator('#request')).toBeHidden();
+});
+
+test('creates a request with a one-character title', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('Document title').fill('A');
+  await page.getByRole('button', { name: 'Create request' }).click();
+
+  await expect(page.getByRole('heading', { name: 'A', exact: true })).toBeVisible();
+  await expect(page.getByRole('status')).toHaveText('Status: Pending');
+});
+
 test('approves a request and shows the saved state after reload', async ({ page }) => {
   await createRequest(page);
   const response = await submitCode(page, '123456');
@@ -68,11 +95,57 @@ test('refreshes a stale approval in a second tab without changing the timestamp'
   await expect(secondTab.getByRole('button', { name: 'Approve document' })).toBeHidden();
 });
 
-test('wraps a long unbroken document title on a narrow screen', async ({ page }) => {
+test('synchronizes two tabs after simultaneous approval attempts', async ({ page, context }) => {
+  await createRequest(page);
+  const secondTab = await context.newPage();
+  await secondTab.goto(page.url());
+  await expect(secondTab.getByRole('status')).toHaveText('Status: Pending');
+
+  let releaseApprovals;
+  const bothApprovalsReady = new Promise(resolve => { releaseApprovals = resolve; });
+  let approvalsSeen = 0;
+  const holdApproval = async route => {
+    approvalsSeen += 1;
+    if (approvalsSeen === 2) releaseApprovals();
+    await bothApprovalsReady;
+    await route.continue();
+  };
+  await page.route('**/api/requests/*/approve', holdApproval);
+  await secondTab.route('**/api/requests/*/approve', holdApproval);
+
+  await Promise.all([
+    page.getByLabel('Approval code').fill('123456'),
+    secondTab.getByLabel('Approval code').fill('123456'),
+  ]);
+  const firstResponse = page.waitForResponse(
+    response => response.request().method() === 'POST' && response.url().endsWith('/approve'),
+  );
+  const secondResponse = secondTab.waitForResponse(
+    response => response.request().method() === 'POST' && response.url().endsWith('/approve'),
+  );
+  await Promise.all([
+    page.getByRole('button', { name: 'Approve document' }).click(),
+    secondTab.getByRole('button', { name: 'Approve document' }).click(),
+  ]);
+  const responses = await Promise.all([firstResponse, secondResponse]);
+
+  expect(responses.map(response => response.status()).sort()).toEqual([200, 409]);
+  await expect(page.getByRole('status')).toHaveText('Status: Approved');
+  await expect(secondTab.getByRole('status')).toHaveText('Status: Approved');
+  const timestamps = await Promise.all([
+    page.getByText(/^Approved at:/).textContent(),
+    secondTab.getByText(/^Approved at:/).textContent(),
+  ]);
+  expect(timestamps[0]).toBe(timestamps[1]);
+});
+
+test('limits title input to 80 characters and wraps it on a narrow screen', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   const title = 'W'.repeat(80);
-  await page.getByLabel('Document title').fill(title);
+  const titleInput = page.getByLabel('Document title');
+  await titleInput.pressSequentially('W'.repeat(81));
+  await expect(titleInput).toHaveValue(title);
   await page.getByRole('button', { name: 'Create request' }).click();
 
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
