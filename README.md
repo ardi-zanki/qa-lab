@@ -3,9 +3,13 @@
 [![QA checks](https://github.com/ardi-zanki/qa-lab/actions/workflows/qa.yml/badge.svg?branch=main)](https://github.com/ardi-zanki/qa-lab/actions/workflows/qa.yml)
 
 Proyek portofolio QA untuk alur persetujuan dokumen dengan kode enam digit.
-Dokumen dan kode berasal dari fixture sintetis.
+Data dan kode hanya fixture sintetis. Aplikasi ini tidak mengelola dokumen nyata,
+memverifikasi identitas, atau membuat tanda tangan elektronik.
 
-![Tampilan aplikasi Document Approval Lab dengan formulir pembuatan permintaan](docs/images/app-preview.png)
+**Teknologi:** Node.js 24 (`node:sqlite`), SQLite, HTML, CSS, JavaScript,
+Playwright Test, Postman, dan GitHub Actions.
+
+![Tampilan awal aplikasi Document Approval QA Lab dengan formulir pembuatan permintaan](docs/images/app-preview.png)
 
 ![Tampilan aplikasi dengan permintaan Purchase request berstatus Approved dan waktu persetujuan WIB](docs/images/approved-state.png)
 
