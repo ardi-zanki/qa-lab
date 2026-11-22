@@ -29,6 +29,28 @@ test('valid code approves a request and persists the timestamp', async ({ reques
   expect(await reloaded.json()).toEqual(approved);
 });
 
+test('accepts titles at the minimum and maximum lengths', async ({ request }) => {
+  for (const title of ['A', 'T'.repeat(80)]) {
+    const response = await request.post('/api/requests', {
+      data: { title, fixture: 'standard' },
+    });
+
+    expect(response.status()).toBe(201);
+    expect(await response.json()).toMatchObject({ title, status: 'pending' });
+  }
+});
+
+test('rejects empty, whitespace-only, and overlong titles', async ({ request }) => {
+  for (const title of ['', '   ', 'T'.repeat(81)]) {
+    const response = await request.post('/api/requests', {
+      data: { title, fixture: 'standard' },
+    });
+
+    expect(response.status()).toBe(400);
+    expect(await response.json()).toMatchObject({ error: { code: 'INVALID_REQUEST' } });
+  }
+});
+
 test('rejects a wrong six-digit code without changing the request', async ({ request }) => {
   const url = await createRequest(request);
   const response = await request.post(`${url}/approve`, { data: { code: '999999' } });
@@ -70,4 +92,25 @@ test('duplicate approval preserves the original timestamp', async ({ request }) 
   expect(replay.status()).toBe(409);
   expect(await replay.json()).toMatchObject({ error: { code: 'ALREADY_APPROVED' } });
   expect(await (await request.get(url)).json()).toEqual(await approved.json());
+});
+
+test('allows only one of two simultaneous approvals', async ({ request }) => {
+  const url = await createRequest(request);
+  const options = { data: { code: '123456' } };
+  const responses = await Promise.all([
+    request.post(`${url}/approve`, options),
+    request.post(`${url}/approve`, options),
+  ]);
+
+  const approvedResponses = responses.filter(response => response.status() === 200);
+  const conflictResponses = responses.filter(response => response.status() === 409);
+  expect(approvedResponses).toHaveLength(1);
+  expect(conflictResponses).toHaveLength(1);
+  expect(await conflictResponses[0].json()).toMatchObject({
+    error: { code: 'ALREADY_APPROVED' },
+  });
+
+  const approved = await approvedResponses[0].json();
+  expect(approved).toMatchObject({ status: 'approved', approvedAt: expect.any(String) });
+  expect(await (await request.get(url)).json()).toEqual(approved);
 });
