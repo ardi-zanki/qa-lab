@@ -64,7 +64,7 @@ test('rejects a wrong six-digit code without changing the request', async ({ req
 
 test('rejects truncated and numeric codes', async ({ request }) => {
   const url = await createRequest(request, 'leading-zero');
-  for (const code of ['42731', 42731, '042731\n', '０４２７３１']) {
+  for (const code of ['42731', 42731, '042731\n', '０４２７３１', '0427317']) {
     const response = await request.post(`${url}/approve`, { data: { code } });
     expect(response.status()).toBe(400);
     expect(await response.json()).toMatchObject({ error: { code: 'INVALID_CODE_FORMAT' } });

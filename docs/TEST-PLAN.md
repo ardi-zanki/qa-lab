@@ -8,16 +8,24 @@ kasus retry dan replay yang memang memakai record yang sama.
 | ID | Jenis | Langkah atau input | Hasil yang diharapkan |
 | --- | --- | --- | --- |
 | QA-01 | Normal | Buat fixture standard dan kirim kode `"123456"` | Create `201`, approve `200`, status `approved`, timestamp UTC terisi. Status tetap sama setelah GET atau reload. |
-| QA-02 | Negatif | Buat fixture standard dan kirim `"999999"` | `422 INCORRECT_CODE`. GET tetap `pending` dengan `approvedAt: null`. UI menampilkan pesan kesalahan. |
+| QA-02 | Negatif | Buat fixture standard dan kirim `"999999"` | `422 INCORRECT_CODE`. GET tetap `pending` dengan `approvedAt: null`. UI menampilkan pesan kesalahan dan `Last attempt: Failed`. |
 | QA-03 | Pemulihan | Setelah QA-02, kirim `"123456"` pada record yang sama | `200`, status berubah menjadi `approved`, pesan kesalahan hilang dari UI. |
 | QA-04 | Negatif | Kirim kode numerik `42731` atau teks lima digit `"42731"` ke fixture leading-zero | `400 INVALID_CODE_FORMAT`. Status dan timestamp tetap sama. |
 | QA-05 | Edge case | Kirim teks `"042731"` ke fixture leading-zero | `200`, status `approved`. Uji yang sama menemukan `422` di mode legacy. |
 | QA-06 | Replay | Setelah QA-01, ulangi pengiriman kode yang sama | `409 ALREADY_APPROVED`. Timestamp persetujuan asli tetap sama. |
 | QA-07 | Dua tab | Buka permintaan pending di dua tab. Setujui di tab pertama, lalu kirim kode valid dari tab kedua. | API menolak persetujuan ulang dengan `409 ALREADY_APPROVED`. Tab kedua mengambil ulang status, menampilkan `Approved` dan timestamp asli, lalu menyembunyikan formulir persetujuan. |
 | QA-08 | Layout | Pada viewport 390 px, buat permintaan dengan judul 80 karakter tanpa spasi. | Judul membungkus dan halaman dapat dibaca tanpa scroll horizontal. |
+| QA-09 | Validasi UI | Ketik judul 81 karakter lalu tekan Create request. | Peringatan baru muncul setelah submit, seluruh teks tetap di input, tidak ada request API, dan batas 80 karakter dijelaskan. |
+| QA-10 | Validasi UI | Pada permintaan pending, ketik kode 7 digit atau berisi huruf. | Tidak ada peringatan saat mengetik. Setelah submit, teks tetap utuh, peringatan format muncul, `Last attempt: Failed` terlihat, dan status dokumen tetap `Pending`. |
 
 QA-01 dan QA-03 membuktikan alur utama dan pemulihan di browser. QA-02 dan
 QA-04 membedakan kode yang salah dari format yang salah. QA-05 membuktikan
 bahwa nol adalah bagian dari identitas kode. QA-06 memastikan pengiriman ulang
 tidak menimpa data persetujuan. QA-07 memeriksa pemulihan UI setelah konflik.
-QA-08 melindungi layout ketika judul memenuhi panjang maksimum.
+QA-08 melindungi layout ketika judul memenuhi panjang maksimum. QA-09 dan
+QA-10 memeriksa kapan peringatan muncul, nilai yang dipertahankan, dan pemisahan
+status dokumen dari hasil percobaan persetujuan.
+
+`Last attempt: Failed` adalah umpan balik UI untuk pengiriman terakhir yang
+ditolak. Status ini tidak mengubah status dokumen (`pending` atau `approved`)
+dan tidak disimpan sebagai riwayat setelah halaman dimuat ulang.

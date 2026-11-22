@@ -31,6 +31,7 @@ test('blocks an empty title in the form', async ({ page }) => {
 
   await expect(titleInput).toBeFocused();
   expect(await titleInput.evaluate(input => input.validity.valueMissing)).toBe(true);
+  await expect(page.locator('#title-error')).toHaveText('Enter a document title.');
   expect(createRequests).toBe(0);
   await expect(page.locator('#request')).toBeHidden();
 });
@@ -57,21 +58,40 @@ test('approves a request and shows the saved state after reload', async ({ page 
 
 test('shows an error for a wrong code and lets the user retry', async ({ page }) => {
   await createRequest(page);
+  const approvalAlert = page.getByRole('region', { name: 'Purchase request' }).getByRole('alert');
+  await page.getByLabel('Approval code').fill('1234567');
+  await expect(approvalAlert).toBeHidden();
+  await page.getByRole('button', { name: 'Approve document' }).click();
+  await expect(page.getByLabel('Approval code')).toHaveValue('1234567');
+  await expect(approvalAlert).toHaveText('Enter exactly six digits (0-9).');
+  await expect(page.locator('#approval-attempt')).toHaveText('Last attempt: Failed');
+  await expect(page.getByRole('status')).toHaveText('Status: Pending');
+
   const rejected = await submitCode(page, '999999');
   expect(rejected.status()).toBe(422);
-  const approvalAlert = page.getByRole('region', { name: 'Purchase request' }).getByRole('alert');
   await expect(approvalAlert).toHaveText('The approval code is incorrect.');
+  await expect(page.locator('#approval-attempt')).toHaveText('Last attempt: Failed');
   await expect(page.getByRole('status')).toHaveText('Status: Pending');
+
+  await page.reload();
+  await expect(page.getByRole('status')).toHaveText('Status: Pending');
+  await expect(page.locator('#approval-attempt')).toBeHidden();
 
   const accepted = await submitCode(page, '123456');
   expect(accepted.status()).toBe(200);
   await expect(approvalAlert).toBeHidden();
+  await expect(page.locator('#approval-attempt')).toBeHidden();
   await expect(page.getByRole('status')).toHaveText('Status: Approved');
 });
 
 test('approves a document whose code starts with zero @leading-zero', async ({ page }) => {
   await createRequest(page, 'leading-zero');
   const response = await submitCode(page, '042731');
+  if (response.status() === 422) {
+    await expect(page.getByRole('alert')).toHaveText('The approval code is incorrect.');
+    await expect(page.getByRole('status')).toHaveText('Status: Pending');
+    await expect(page.getByRole('button', { name: 'Approve document' })).toBeEnabled();
+  }
   expect(response.status(), await response.text()).toBe(200);
   await expect(page.getByRole('status')).toHaveText('Status: Approved');
 });
@@ -147,13 +167,20 @@ test('synchronizes two tabs after simultaneous approval attempts', async ({ page
   expect(timestamps[0]).toBe(timestamps[1]);
 });
 
-test('limits title input to 80 characters and wraps it on a narrow screen', async ({ page }) => {
+test('validates an overlong title and wraps an 80-character title on a narrow screen', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   const title = 'W'.repeat(80);
+  const overlongTitle = 'W'.repeat(81);
   const titleInput = page.getByLabel('Document title');
-  await titleInput.pressSequentially('W'.repeat(81));
-  await expect(titleInput).toHaveValue(title);
+  await titleInput.pressSequentially(overlongTitle);
+  await expect(titleInput).toHaveValue(overlongTitle);
+  await expect(page.locator('#title-error')).toBeHidden();
+  await page.getByRole('button', { name: 'Create request' }).click();
+  await expect(page.locator('#title-error')).toHaveText('Document title must be 80 characters or fewer.');
+  await expect(page.locator('#request')).toBeHidden();
+
+  await titleInput.fill(title);
   await page.getByRole('button', { name: 'Create request' }).click();
 
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
