@@ -51,6 +51,36 @@ test('rejects empty, whitespace-only, and overlong titles', async ({ request }) 
   }
 });
 
+test('rejects malformed JSON and unsupported fixtures', async ({ request }) => {
+  const malformedCreate = await request.post('/api/requests', {
+    data: Buffer.from('{"title":'),
+    headers: { 'content-type': 'application/json' },
+  });
+  expect(malformedCreate.status()).toBe(400);
+  expect(await malformedCreate.json()).toMatchObject({ error: { code: 'INVALID_JSON' } });
+
+  const unsupportedFixture = await request.post('/api/requests', {
+    data: { title: 'Purchase request', fixture: 'unsupported' },
+  });
+  expect(unsupportedFixture.status()).toBe(400);
+  expect(await unsupportedFixture.json()).toMatchObject({ error: { code: 'INVALID_REQUEST' } });
+
+  const malformedApproval = await request.post('/api/requests/999999/approve', {
+    data: Buffer.from('{"code":'),
+    headers: { 'content-type': 'application/json' },
+  });
+  expect(malformedApproval.status()).toBe(400);
+  expect(await malformedApproval.json()).toMatchObject({ error: { code: 'INVALID_JSON' } });
+});
+
+test('returns not found for unknown requests and routes', async ({ request }) => {
+  for (const path of ['/api/requests/999999999', '/api/unknown']) {
+    const response = await request.get(path);
+    expect(response.status()).toBe(404);
+    expect(await response.json()).toMatchObject({ error: { code: 'NOT_FOUND' } });
+  }
+});
+
 test('rejects a wrong six-digit code without changing the request', async ({ request }) => {
   const url = await createRequest(request);
   const response = await request.post(`${url}/approve`, { data: { code: '999999' } });
@@ -64,7 +94,7 @@ test('rejects a wrong six-digit code without changing the request', async ({ req
 
 test('rejects truncated and numeric codes', async ({ request }) => {
   const url = await createRequest(request, 'leading-zero');
-  for (const code of ['42731', 42731, '042731\n', '０４２７３１', '0427317']) {
+  for (const code of ['', '42731', 42731, 'abcdef', '042731\n', '０４２７３１', '0427317']) {
     const response = await request.post(`${url}/approve`, { data: { code } });
     expect(response.status()).toBe(400);
     expect(await response.json()).toMatchObject({ error: { code: 'INVALID_CODE_FORMAT' } });

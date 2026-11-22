@@ -17,6 +17,8 @@ kasus retry dan replay yang memang memakai record yang sama.
 | QA-08 | Layout | Pada viewport 390 px, buat permintaan dengan judul 80 karakter tanpa spasi. | Judul membungkus dan halaman dapat dibaca tanpa scroll horizontal. |
 | QA-09 | Validasi UI | Ketik judul 81 karakter lalu tekan Create request. | Peringatan baru muncul setelah submit, seluruh teks tetap di input, tidak ada request API, dan batas 80 karakter dijelaskan. |
 | QA-10 | Validasi UI | Pada permintaan pending, ketik kode 7 digit atau berisi huruf. | Tidak ada peringatan saat mengetik. Setelah submit, teks tetap utuh, peringatan format muncul, `Last attempt: Failed` terlihat, dan status dokumen tetap `Pending`. |
+| QA-11 | Kontrak API | Kirim JSON rusak pada endpoint create/approve dan fixture yang tidak didukung pada endpoint create. | JSON rusak menghasilkan `400 INVALID_JSON`; fixture tidak didukung menghasilkan `400 INVALID_REQUEST`. Tidak ada permintaan yang dibuat atau disetujui. |
+| QA-12 | Kontrak API | Ambil ID permintaan yang tidak ada dan akses rute API yang tidak dikenal. | Kedua permintaan menghasilkan `404 NOT_FOUND`. |
 
 QA-01 dan QA-03 membuktikan alur utama dan pemulihan di browser. QA-02 dan
 QA-04 membedakan kode yang salah dari format yang salah. QA-05 membuktikan
@@ -24,7 +26,8 @@ bahwa nol adalah bagian dari identitas kode. QA-06 memastikan pengiriman ulang
 tidak menimpa data persetujuan. QA-07 memeriksa pemulihan UI setelah konflik.
 QA-08 melindungi layout ketika judul memenuhi panjang maksimum. QA-09 dan
 QA-10 memeriksa kapan peringatan muncul, nilai yang dipertahankan, dan pemisahan
-status dokumen dari hasil percobaan persetujuan.
+status dokumen dari hasil percobaan persetujuan. QA-11 dan QA-12 memeriksa
+respons untuk input JSON, fixture, ID, dan rute API yang tidak valid.
 
 `Last attempt: Failed` adalah umpan balik UI untuk pengiriman terakhir yang
 ditolak. Status ini tidak mengubah status dokumen (`pending` atau `approved`)
