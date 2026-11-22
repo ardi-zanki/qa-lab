@@ -44,6 +44,9 @@ const assets = new Map([
   ['/', ['index.html', 'text/html']],
   ['/ui.js', ['ui.js', 'text/javascript']],
   ['/styles.css', ['styles.css', 'text/css']],
+  ['/favicon.svg', ['favicon.svg', 'image/svg+xml']],
+  ['/fonts/inter-latin.woff2', ['fonts/inter-latin.woff2', 'font/woff2']],
+  ['/fonts/inter-latin-ext.woff2', ['fonts/inter-latin-ext.woff2', 'font/woff2']],
 ].map(([route, [file, type]]) => [
   route,
   { data: readFileSync(new URL(file, import.meta.url)), type },
@@ -70,7 +73,10 @@ async function handle(request, response) {
   const { pathname } = new URL(request.url, `http://${host}`);
   const asset = assets.get(pathname);
   if (request.method === 'GET' && asset) {
-    response.writeHead(200, { 'Content-Type': `${asset.type}; charset=utf-8` });
+    const needsCharset = asset.type.startsWith('text/') || asset.type === 'image/svg+xml';
+    response.writeHead(200, {
+      'Content-Type': `${asset.type}${needsCharset ? '; charset=utf-8' : ''}`,
+    });
     return response.end(asset.data);
   }
 
