@@ -1,9 +1,13 @@
 # Document Approval QA Lab
 
+[![QA checks](https://github.com/ardi-zanki/qa-lab/actions/workflows/qa.yml/badge.svg?branch=main)](https://github.com/ardi-zanki/qa-lab/actions/workflows/qa.yml)
+
 Proyek portofolio QA untuk alur persetujuan dokumen dengan kode enam digit.
 Dokumen dan kode berasal dari fixture sintetis.
 
 ![Tampilan aplikasi Document Approval Lab dengan formulir pembuatan permintaan](docs/images/app-preview.png)
+
+![Tampilan aplikasi dengan permintaan Purchase request berstatus Approved dan waktu persetujuan WIB](docs/images/approved-state.png)
 
 ## Studi kasus kode 042731
 
@@ -72,6 +76,7 @@ membandingkan kedua mode.
 
 ## GitHub Actions
 
+Lihat [hasil run GitHub Actions](https://github.com/ardi-zanki/qa-lab/actions/workflows/qa.yml).
 [Workflow QA](.github/workflows/qa.yml) menjalankan tes API dan browser pada
 push, pull request, atau pemicu manual. Unduh artefak `playwright-report`
 dari halaman run untuk memeriksa hasil tes. Untuk kegagalan browser, laporan
