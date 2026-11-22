@@ -3,6 +3,8 @@
 Proyek portofolio QA untuk alur persetujuan dokumen dengan kode enam digit.
 Dokumen dan kode berasal dari fixture sintetis.
 
+![Tampilan aplikasi Document Approval Lab dengan formulir pembuatan permintaan](docs/images/app-preview.png)
+
 ## Studi kasus kode 042731
 
 1. **Risiko.** Kode yang valid harus bisa menyetujui permintaan. Kode yang salah harus membiarkan status tetap `pending`.
