@@ -101,7 +101,7 @@ async function handle(request, response) {
 
     if (request.method === 'POST' && match[2]) {
       const { code } = (await readJson(request)) ?? {};
-      if (typeof code !== 'string' || !/^[0-9]{6}$/.test(code)) {
+      if (typeof code !== 'string' || code.length !== 6 || !/^[0-9]{6}$/.test(code)) {
         return sendError(response, 400, 'INVALID_CODE_FORMAT', 'Enter a six-digit code.');
       }
 
